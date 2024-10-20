@@ -1,0 +1,36 @@
+<header class="bg-gray-800 text-white p-4">
+    <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-xl font-bold">Booking System</h1>
+        <div class="relative inline-block text-left">
+            <div>
+                <button type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-gray-800 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500" id="menu-button" aria-expanded="true" aria-haspopup="true">
+                    Menu
+                </button>
+            </div>
+
+            <div class="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1" id="dropdown-menu">
+                <div class="py-1" role="none">
+                    <a href="/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Home</a>
+                    <a href="/approved-bookings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Approved Bookings</a>
+                    <a href="/rejected-bookings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Rejected Bookings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script>
+    // Dropdown Menu Toggle
+    document.getElementById('menu-button').addEventListener('click', () => {
+        const menu = document.getElementById('dropdown-menu');
+        menu.classList.toggle('hidden');
+    });
+
+    // Close the dropdown if clicked outside
+    window.addEventListener('click', (event) => {
+        const menu = document.getElementById('dropdown-menu');
+        if (!event.target.closest('#menu-button')) {
+            menu.classList.add('hidden');
+        }
+    });
+</script>

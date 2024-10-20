@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        main {
+            flex: 1;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .highlight {
+            background-color: #fffbeb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="bg-gray-800 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/booking-dashboard.html" class="text-xl font-bold hover:">Booking System</a>
+            <div class="relative inline-block text-left">
+                <button type="button" class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-gray-800 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none" id="menu-button">
+                    Menu
+                </button>
+                <div class="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white hidden" id="dropdown-menu">
+                    <div class="py-1">
+                        <a href="/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log out</a>
+                        <a href="/approved-bookings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approved Bookings</a>
+                        <a href="/rejected-bookings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Rejected Bookings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main class="container mx-auto p-6">
+        <!-- Search Box for Booking ID -->
+        <div class="mb-6">
+            <label for="searchBookingId" class="block text-sm font-medium text-gray-700">Search Booking by ID:</label>
+            <input type="number" id="searchBookingId" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter Booking ID">
+            <button id="fetchBookingBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md">Fetch Booking</button>
+        </div>
+
+        <!-- Check-in Form -->
+        <form id="checkinForm" class="space-y-4 hidden">
+            <input type="hidden" name="booking_id" id="bookingId">
+            
+            <div>
+                <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name:</label>
+                <input type="text" id="fullName" name="full_name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email:</label>
+                <input type="email" id="email" name="email" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="contactNumber" class="block text-sm font-medium text-gray-700">Contact Number:</label>
+                <input type="text" id="contactNumber" name="contact_number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="checkedinDate" class="block text-sm font-medium text-gray-700">Check-in Date:</label>
+                <input type="date" id="checkedinDate" name="checkedin_date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required readonly>
+            </div>
+
+            <div>
+                <label for="checkoutDate" class="block text-sm font-medium text-gray-700">Check-out Date:</label>
+                <input type="date" id="checkoutDate" name="checkout_date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="roomType" class="block text-sm font-medium text-gray-700">Room Type:</label>
+                <input type="text" id="roomType" name="room_type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="occupants" class="block text-sm font-medium text-gray-700">Occupants:</label>
+                <input type="number" id="occupants" name="occupants" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <div>
+                <label for="extendedCheckoutDate" class="block text-sm font-medium text-gray-700">Extended Check-out Date:</label>
+                <input type="date" id="extendedCheckoutDate" name="extended_checkout_date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+            </div>
+
+            <div>
+                <label for="staffId" class="block text-sm font-medium text-gray-700">Staff ID:</label>
+                <input type="number" id="staffId" name="staff_id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+            </div>
+
+            <input type="text" id="status" name="status" class="hidden" value="checked-in" readonly>
+
+            <button type="submit" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md">Submit Check-in</button>
+        </form>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2024 Booking System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Helper function to get today's date in YYYY-MM-DD format
+        function getTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Toggle Dropdown Menu
+        document.getElementById('menu-button').addEventListener('click', () => {
+            const menu = document.getElementById('dropdown-menu');
+            menu.classList.toggle('hidden');
+        });
+
+        // Close dropdown if clicked outside
+        window.addEventListener('click', (event) => {
+            const menu = document.getElementById('dropdown-menu');
+            if (!event.target.closest('#menu-button')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Fetch Booking Data by Booking ID
+        document.getElementById('fetchBookingBtn').addEventListener('click', () => {
+            const bookingId = document.getElementById('searchBookingId').value;
+            if (bookingId) {
+                console.log('Fetching booking details for ID:', bookingId); // Debug log
+                fetch(`/booking/${bookingId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Booking not found');
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Booking Data:', data); // Debug log
+                        document.getElementById('bookingId').value = data.booking_id;
+                        document.getElementById('fullName').value = data.full_name;
+                        document.getElementById('email').value = data.email;
+                        document.getElementById('contactNumber').value = data.contact_number;
+
+                        // Set current date as check-in date and prefill check-out date
+                        const todayDate = getTodayDate();
+                        document.getElementById('checkedinDate').value = todayDate;
+                        document.getElementById('checkoutDate').value = data.checkout_date || todayDate;
+
+                        document.getElementById('roomType').value = data.room_type;
+                        document.getElementById('checkinForm').classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error); // Debug log
+                        alert('Booking not found.');
+                    });
+            } else {
+                alert('Please enter a valid Booking ID.');
+            }
+        });
+
+
+        // Ensure checkout date is always greater than check-in date
+document.getElementById('checkoutDate').addEventListener('change', (event) => {
+    const checkinDate = new Date(document.getElementById('checkedinDate').value);
+    const checkoutDate = new Date(event.target.value);
+
+    if (checkoutDate <= checkinDate) {
+        alert('Check-out date must be later than the check-in date.');
+        event.target.value = ''; // Clear the invalid checkout date
+    }
+});
+
+
+
+       // Helper function to send a POST request
+async function postData(url = '', data = {}) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to submit data');
+    }
+    
+    return response.json(); // Return the response as JSON
+}
+
+// Handle form submission and process check-in
+document.getElementById('checkinForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+
+    console.log('Submitting form data:', data); // Debug log
+
+    try {
+        // Submit check-in data
+        const responseData = await postData('/checkin', data);
+        console.log('Check-in successful:', responseData); // Debug log
+        alert('Check-in successful!');
+        
+        // Clear the form and hide it
+        document.getElementById('checkinForm').reset();
+        document.getElementById('checkinForm').classList.add('hidden');
+    } catch (error) {
+        console.error('Error:', error); // Debug log
+        alert('Check-in submission failed.');
+    }
+});
+    </script>
+</body>
+</html>

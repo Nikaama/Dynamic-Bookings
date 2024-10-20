@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/path/to/global.css"> <!-- External CSS -->
+</head>
+
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gray-800 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/booking-dashboard.html" class="text-xl font-bold hover:">Booking System</a>
+            <div class="relative inline-block text-left">
+                <button id="menu-button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-gray-800 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none">
+                    Menu
+                </button>
+                <div class="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden" id="dropdown-menu">
+                    <div class="py-1">
+                        <a href="/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                        <a href="/check-in.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customer Check-in</a>
+                        <a href="/approved-bookings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approved Bookings</a>
+                        <a href="/rejected-booking.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Rejected Bookings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 flex-grow">
+        <h1 class="text-xl sm:text-3xl font-bold mb-4">Host Dashboard</h1>
+
+        <!-- Scrollable Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white shadow-md rounded-lg text-sm sm:text-base">
+                <thead>
+                    <tr class="bg-gray-200 text-left">
+                        <th class="py-2 px-2 sm:px-4">Booking ID</th>
+                        <th class="py-2 px-2 sm:px-4">Full Name</th>
+                        <th class="py-2 px-2 sm:px-4">Check-in Date</th>
+                        <th class="py-2 px-2 sm:px-4">Check-out Date</th>
+                        <th class="py-2 px-2 sm:px-4">Room Type</th>
+                        <th class="py-2 px-2 sm:px-4">Total Days</th>
+                        <th class="py-2 px-2 sm:px-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="bookings-body">
+                    <!-- Booking data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2024 Booking System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Script for Dropdown and Fetching Bookings -->
+    <script>
+        // Toggle dropdown visibility
+        document.getElementById('menu-button').addEventListener('click', function () {
+            const dropdown = document.getElementById('dropdown-menu');
+            dropdown.classList.toggle('hidden');
+        });
+
+        // Close dropdown if clicked outside
+        window.addEventListener('click', function (event) {
+            const dropdown = document.getElementById('dropdown-menu');
+            const button = document.getElementById('menu-button');
+            if (!button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Fetch and Display Bookings
+        async function fetchBookings() {
+            const response = await fetch('/api/bookings');
+            const bookings = await response.json();
+            const tbody = document.querySelector('#bookings-body');
+            tbody.innerHTML = '';
+
+            // Filter and sort pending bookings, then include the rest
+            const sortedBookings = bookings.sort((a, b) => {
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (a.status !== 'pending' && b.status === 'pending') return 1;
+                return 0; // Keep original order for non-pending bookings
+            });
+
+            sortedBookings.forEach(booking => {
+                const checkinDate = new Date(booking.checkin_date);
+                const checkoutDate = new Date(booking.checkout_date);
+                const dayCount = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+
+                const highlightClass = booking.status === 'pending' ? 'bg-yellow-100' : ''; // Highlight pending bookings
+                tbody.innerHTML += `
+                    <tr class="${highlightClass}">
+                        <td class="py-2 px-2 sm:px-4 border-b">${booking.booking_id}</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">${booking.full_name}</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">${checkinDate.toLocaleDateString('en-GB')}</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">${checkoutDate.toLocaleDateString('en-GB')}</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">${booking.room_type}</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">${dayCount} days</td>
+                        <td class="py-2 px-2 sm:px-4 border-b">
+                            <select class="status-dropdown" data-booking-id="${booking.booking_id}" ${booking.status === 'checked_in' ? 'disabled' : ''}>
+                                <option value="pending" ${booking.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="confirmed" ${booking.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                                <option value="rejected" ${booking.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                            </select>
+                            <button class="save-btn hidden bg-blue-500 text-white rounded px-2 py-1 mt-2" data-booking-id="${booking.booking_id}" onclick="saveStatus(${booking.booking_id})">Save</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Save Status Change
+        async function saveStatus(bookingId) {
+            const dropdown = document.querySelector(`select.status-dropdown[data-booking-id="${bookingId}"]`);
+            const newStatus = dropdown.value;
+
+            try {
+                const response = await fetch(`/api/bookings/${bookingId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+
+                if (response.ok) {
+                    alert('Status updated successfully');
+                    document.querySelector(`button.save-btn[data-booking-id="${bookingId}"]`).classList.add('hidden');
+                } else {
+                    alert('Error updating status');
+                }
+            } catch (error) {
+                alert('An error occurred while updating the status.');
+            }
+        }
+
+        // Show Save button when status changes
+        document.addEventListener('change', function (e) {
+            if (e.target.classList.contains('status-dropdown') && !e.target.disabled) {
+                const bookingId = e.target.getAttribute('data-booking-id');
+                const saveButton = document.querySelector(`button.save-btn[data-booking-id="${bookingId}"]`);
+                saveButton.classList.remove('hidden');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchBookings();
+            setInterval(fetchBookings, 10000); // Refresh bookings every 10 seconds
+        });
+    </script>
+</body>
+
+</html>

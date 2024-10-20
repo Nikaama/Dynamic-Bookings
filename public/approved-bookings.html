@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmed Bookings</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gray-800 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/booking-dashboard.html" class="text-xl font-bold hover:">
+                Booking System
+            </a>
+            <div class="relative inline-block text-left">
+                <button id="menu-button" class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-gray-800 text-sm font-medium text-white hover:bg-gray-700">
+                    Menu
+                </button>
+                <div class="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden" id="dropdown-menu">
+                    <div class="py-1">
+                        <a href="/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                        <a href="/booking-dashboard.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+                        <a href="/rejected-booking.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Rejected Bookings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 flex-grow">
+        <h1 class="text-3xl font-bold mb-6">Confirmed Bookings</h1>
+
+        <!-- Responsive Table -->
+        <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gray-200 text-left">
+                        <th class="py-2 px-4">ID</th>
+                        <th class="py-2 px-4">Full Name</th>
+                        <th class="py-2 px-4">Check-in Date</th>
+                        <th class="py-2 px-4">Check-out Date</th>
+                    </tr>
+                </thead>
+                <tbody id="confirmed-bookings-body" class="text-gray-700">
+                    <!-- Confirmed bookings will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white p-4 mt-auto">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2024 Booking System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Toggle dropdown visibility
+        document.getElementById('menu-button').addEventListener('click', function() {
+            const dropdown = document.getElementById('dropdown-menu');
+            dropdown.classList.toggle('hidden'); // Toggle the 'hidden' class
+        });
+
+        // Close the dropdown if the user clicks outside of it
+        window.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdown-menu');
+            const button = document.getElementById('menu-button');
+            if (!button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden'); // Hide the dropdown
+            }
+        });
+
+        // Fetch and display confirmed bookings
+        async function fetchConfirmedBookings() {
+            try {
+                const response = await fetch('/api/bookings/confirmed');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const bookings = await response.json();
+                const tbody = document.querySelector('#confirmed-bookings-body'); // Updated tbody ID
+                tbody.innerHTML = ''; // Clear existing rows
+
+                bookings.forEach(booking => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="py-2 px-4 border-b">${booking.booking_id}</td>
+                            <td class="py-2 px-4 border-b">${booking.full_name}</td>
+                            <td class="py-2 px-4 border-b">${formatDate(booking.checkin_date)}</td>
+                            <td class="py-2 px-4 border-b">${formatDate(booking.checkout_date)}</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching confirmed bookings:', error);
+                document.querySelector('#confirmed-bookings-body').innerHTML = '<tr><td colspan="4" class="py-2 text-center text-red-500">Failed to load confirmed bookings.</td></tr>';
+            }
+        }
+
+        // Format date function
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+
+        // Fetch bookings on page load
+        document.addEventListener('DOMContentLoaded', fetchConfirmedBookings);
+    </script>
+</body>
+</html>
