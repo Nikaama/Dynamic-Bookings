@@ -11,10 +11,10 @@ app.use(bodyParser.json()); // To parse JSON bodies
 
 // Create a MySQL connection pool
 const pool = mysql.createPool({
-    host: 'localhost',         // Your MySQL host
-    user: 'root',              // Your MySQL username
-    password: 'Muri@835101',      // Your MySQL password
-    database: 'homestayDB',    // Your database name
+    host: 'localhost',         // My MySQL host
+    user: 'root',              // My MySQL username
+    password: 'Muri@835101',      // My MySQL password
+    database: 'homestayDB',    // My database name
     waitForConnections: true,
     connectionLimit: 10,       // Adjust based on expected traffic
     queueLimit: 0,
