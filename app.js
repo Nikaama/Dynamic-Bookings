@@ -38,12 +38,40 @@ mysql.createConnection(dbConfig)
 
 // Serve the login page
 app.get('/', (req, res) => {
-    console.log('Serving login page');
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 // User Login
-app.post('/login', async (req, res) => {
+app.post('/login', handleUserLogin);
+
+// Middleware to check authentication
+const isAuthenticated = (req, res, next) => {
+    if (!req.session.userId) {
+        return res.redirect('/');
+    }
+    next();
+};
+
+// Serve Booking Dashboard (authenticated users only)
+app.get('/user/bookings', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'booking-dashboard.html'));
+});
+
+// API Routes
+app.get('/api/bookings', fetchBookings);
+app.get('/api/bookings/rejected', fetchRejectedBookings);
+app.get('/api/bookings/confirmed', fetchConfirmedBookings);
+app.get('/booking/:booking_id', fetchConfirmedBookingById);
+app.post('/checkin', handleCheckIn);
+app.put('/api/bookings/:id/status', updateBookingStatus);
+
+// Start the server
+app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+});
+
+// Route Handlers
+async function handleUserLogin(req, res) {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -70,23 +98,9 @@ app.post('/login', async (req, res) => {
         console.error('Error during login:', error);
         res.status(500).json({ message: 'Login failed due to server error' });
     }
-});
+}
 
-// Middleware to check authentication
-const isAuthenticated = (req, res, next) => {
-    if (!req.session.userId) {
-        return res.redirect('/');
-    }
-    next();
-};
-
-// Serve Booking Dashboard (authenticated users only)
-app.get('/user/bookings', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'booking-dashboard.html'));
-});
-
-// Fetch Bookings
-app.get('/api/bookings', async (req, res) => {
+async function fetchBookings(req, res) {
     try {
         const [bookings] = await db.execute('SELECT *, DATEDIFF(checkout_date, checkin_date) AS day_count FROM booking');
         res.json(bookings);
@@ -94,10 +108,101 @@ app.get('/api/bookings', async (req, res) => {
         console.error('Error fetching bookings:', error);
         res.status(500).json({ error: 'Error fetching bookings' });
     }
-});
+}
 
-// Update Booking Status
-app.put('/api/bookings/:id/status', async (req, res) => {
+async function fetchRejectedBookings(req, res) {
+    try {
+        const [bookings] = await db.execute('SELECT * FROM booking WHERE status = ?', ['rejected']);
+        res.json(bookings);
+    } catch (error) {
+        console.error('Error fetching rejected bookings:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
+async function fetchConfirmedBookings(req, res) {
+    try {
+        const [results] = await db.execute('SELECT * FROM booking WHERE status = ?', ['confirmed']);
+        res.json(results);
+    } catch (error) {
+        console.error('Error fetching confirmed bookings:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+}
+
+async function fetchConfirmedBookingById(req, res) {
+    const bookingId = req.params.booking_id;
+    const query = 'SELECT * FROM booking WHERE booking_id = ? AND status = ?';
+
+    try {
+        const [results] = await db.execute(query, [bookingId, 'confirmed']);
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Confirmed booking not found' });
+        }
+        res.json(results[0]);
+    } catch (err) {
+        console.error('Database query failed:', err);
+        res.status(500).json({ error: 'Database query failed' });
+    }
+}
+
+async function handleCheckIn(req, res) {
+    try {
+        const {
+            booking_id,
+            full_name,
+            email,
+            contact_number,
+            checkedin_date,
+            checkout_date,
+            checkedout_date = null, // Can be null initially
+            room_type,
+            occupants,
+            status = 'checked_in', // Default status to 'checked_in'
+            staff_id,
+            aadhar_number
+        } = req.body;
+
+        // Query to insert check-in data into the database
+        const query = `
+            INSERT INTO checkedin 
+            (booking_id, full_name, email, contact_number, checkedin_date, checkout_date, checkedout_date, room_type, occupants, status, staff_id, aadhar_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        // Execute the query with the corresponding values
+        const [result] = await db.execute(query, [
+            booking_id,
+            full_name,
+            email,
+            contact_number,
+            checkedin_date,
+            checkout_date,
+            checkedout_date, // Can be null initially if not checked out yet
+            room_type,
+            occupants,
+            status,
+            staff_id,
+            aadhar_number
+        ]);
+
+        // Return success response
+        res.status(200).json({
+            message: 'Check-in data submitted successfully',
+            result
+        });
+
+    } catch (error) {
+        // Handle any errors
+        console.error('Check-in data submission failed:', error);
+        res.status(500).json({
+            message: 'Failed to submit check-in data',
+            error: error.message
+        });
+    }
+}
+
+async function updateBookingStatus(req, res) {
     const bookingId = req.params.id;
     const { status } = req.body;
 
@@ -111,7 +216,7 @@ app.put('/api/bookings/:id/status', async (req, res) => {
         if (currentStatusRows.length === 0) {
             return res.status(404).json({ message: 'Booking not found' });
         }
-        
+
         const currentStatus = currentStatusRows[0].status;
         if (currentStatus === 'checked_in') {
             return res.status(403).json({ message: 'Cannot change status of checked-in booking' });
@@ -128,84 +233,4 @@ app.put('/api/bookings/:id/status', async (req, res) => {
         console.error('Error updating status:', error);
         res.status(500).json({ error: 'Database error' });
     }
-});
-
-// Fetch Rejected Bookings
-app.get('/api/bookings/rejected', async (req, res) => {
-    try {
-        const [bookings] = await db.execute('SELECT * FROM booking WHERE status = ?', ['rejected']);
-        res.json(bookings);
-    } catch (error) {
-        console.error('Error fetching rejected bookings:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Fetch confirmed Bookings
-app.get('/api/bookings/confirmed', async (req, res) => {
-    try {
-        const [results] = await db.execute('SELECT * FROM booking WHERE status = ?', ['confirmed']);
-        res.json(results);
-    } catch (error) {
-        console.error('Error fetching confirmed bookings:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-});
-
-// Handle Check-in Submission
-app.post('/checkin', async (req, res) => {
-    const {
-        booking_id,
-        full_name,
-        email,
-        contact_number,
-        checkedin_date,
-        checkout_date,
-        room_type,
-        status = 'checked_in', // Set default status to 'checked_in'
-        staff_id
-    } = req.body;
-
-    const query = `
-      INSERT INTO checkedin 
-      (booking_id, full_name, email, contact_number, checkedin_date, checkout_date, room_type, status, staff_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    try {
-        await db.execute(query, [
-            booking_id, full_name, email, contact_number, 
-            checkedin_date, checkout_date, room_type, status, staff_id
-        ]);
-        
-        // Update original booking status to 'checked_in'
-        await db.execute('UPDATE booking SET status = ? WHERE booking_id = ?', ['checked_in', booking_id]);
-        
-        res.json({ message: 'Check-in successful' });
-    } catch (err) {
-        console.error('Check-in data submission failed:', err);
-        res.status(500).json({ error: 'Check-in data submission failed' });
-    }
-});
-
-// Fetch Confirmed Booking by ID for Check-in
-app.get('/booking/:booking_id', async (req, res) => {
-    const bookingId = req.params.booking_id;
-    const query = 'SELECT * FROM booking WHERE booking_id = ? AND status = ?';
-  
-    try {
-        const [results] = await db.execute(query, [bookingId, 'confirmed']);
-        if (results.length === 0) {
-            return res.status(404).json({ message: 'Confirmed booking not found' });
-        }
-        res.json(results[0]);
-    } catch (err) {
-        console.error('Database query failed:', err);
-        res.status(500).json({ error: 'Database query failed' });
-    }
-});
-
-// Start the server
-app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-});
+}
